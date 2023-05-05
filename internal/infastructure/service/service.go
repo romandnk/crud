@@ -1,10 +1,9 @@
-package repository
+package service
 
 import (
 	"context"
-	"github.com/jackc/pgx/v5"
 	"github.com/romandnk/crud/internal/entities/task"
-	"github.com/romandnk/crud/internal/infastructure/repository/postgres"
+	"github.com/romandnk/crud/internal/infastructure/repository"
 )
 
 type Task interface {
@@ -15,12 +14,12 @@ type Task interface {
 	Delete(ctx context.Context, id int) error
 }
 
-type Repository struct {
+type Service struct {
 	Task
 }
 
-func NewRepository(db *pgx.Conn) *Repository {
-	return &Repository{
-		Task: postgres.NewTaskPostgres(db),
+func NewService(repos *repository.Repository) *Service {
+	return &Service{
+		Task: NewTaskService(repos.Task),
 	}
 }
