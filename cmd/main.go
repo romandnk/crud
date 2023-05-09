@@ -23,8 +23,6 @@ func configInit() error {
 }
 
 func main() {
-	logrus.SetFormatter(new(logrus.JSONFormatter))
-
 	if err := configInit(); err != nil {
 		logrus.Fatalf("error loading config: %s", err.Error())
 	}
@@ -41,17 +39,19 @@ func main() {
 		Port:     viper.GetString("db.port"),
 		Username: viper.GetString("db.username"),
 		DBName:   viper.GetString("db.dbname"),
+		SSL:      viper.GetString("db.ssl"),
 		Password: os.Getenv("DB_PASSWORD"),
 	}
-	connString := fmt.Sprintf("postgres://%s:%s@%s:%s/%s",
+	connString := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=%s",
 		cfg.Username,
 		cfg.Password,
 		cfg.Host,
 		cfg.Port,
 		cfg.DBName,
+		cfg.SSL,
 	)
 
-	db, err := postgres.NewPostgresDB(ctx, connString)
+	db, err := postgres.NewPostgresDB(ctx, connString, "/schema")
 	if err != nil {
 		logrus.Fatalf("error connecting to db: %s", err.Error())
 	}
@@ -66,16 +66,11 @@ func main() {
 			logrus.Fatalf("error occured while running http server: %s", err.Error())
 		}
 	}()
-
 	logrus.Print("server has started")
-
 	done := make(chan os.Signal, 1)
 	signal.Notify(done, syscall.SIGTERM, syscall.SIGINT)
 	<-done
-	logrus.Print("server is shutting down")
-
 	if err := srv.Stop(ctx); err != nil {
-		logrus.Errorf("error occured while server shutting down: %s", err.Error())
+		logrus.Errorf("error while server shutting down: %s", err.Error())
 	}
-	logrus.Print("server has stopped")
 }

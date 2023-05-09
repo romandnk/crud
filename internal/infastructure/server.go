@@ -2,6 +2,7 @@ package infastructure
 
 import (
 	"context"
+	"github.com/sirupsen/logrus"
 	"net/http"
 	"time"
 )
@@ -22,5 +23,9 @@ func (s *Server) Start(port string, handler http.Handler) error {
 }
 
 func (s *Server) Stop(ctx context.Context) error {
-	return s.srv.Shutdown(ctx)
+	if err := s.srv.Shutdown(ctx); err != nil {
+		return err
+	}
+	logrus.Print("server has stopped")
+	return nil
 }

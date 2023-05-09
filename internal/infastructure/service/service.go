@@ -6,6 +6,7 @@ import (
 	"github.com/romandnk/crud/internal/infastructure/repository"
 )
 
+//go:generate mockgen -source=service.go -destination=mocks/mock_db.go
 type Task interface {
 	Create(ctx context.Context, task task.Task) (int, error)
 	GetAll(ctx context.Context) ([]task.Task, error)
