@@ -2,8 +2,10 @@ package postgres
 
 import (
 	"context"
+	"fmt"
 	"github.com/jackc/pgx/v5"
-	"github.com/romandnk/crud/internal/entities/task"
+	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/romandnk/crud/internal/entities"
 	"time"
 )
 
@@ -17,14 +19,14 @@ func NewTaskPostgres(db *pgx.Conn) *TaskPostgres {
 	}
 }
 
-func (t *TaskPostgres) Create(ctx context.Context, task task.Task) (int, error) {
+func (t *TaskPostgres) Create(ctx context.Context, task entities.Task) (int, error) {
 	var id int
 
-	query := `INSERT INTO task (creation_time, message) VALUES ($1, $2) RETURNING id`
+	query := fmt.Sprintf(`INSERT INTO %s (creation_time, updating_time, message) VALUES ($1, $2, $3) RETURNING id`, tasksTable)
 
 	row := t.db.QueryRow(ctx, query,
-		time.Now().Format("01/02/2000 12:00:00"),
-		time.Now().Format("01/02/2000 12:00:00"),
+		time.Now(),
+		time.Now(),
 		task.Message,
 	)
 
@@ -35,10 +37,10 @@ func (t *TaskPostgres) Create(ctx context.Context, task task.Task) (int, error) 
 	return id, nil
 }
 
-func (t *TaskPostgres) GetAll(ctx context.Context) ([]task.Task, error) {
-	var tasks []task.Task
+func (t *TaskPostgres) GetAll(ctx context.Context) ([]entities.Task, error) {
+	var tasks []entities.Task
 
-	query := `SELECT id, creation_time, updating_time message FROM task`
+	query := fmt.Sprintf(`SELECT id, creation_time, updating_time, message FROM %s`, tasksTable)
 
 	rows, err := t.db.Query(ctx, query)
 	if err != nil {
@@ -47,12 +49,18 @@ func (t *TaskPostgres) GetAll(ctx context.Context) ([]task.Task, error) {
 	defer rows.Close()
 
 	for rows.Next() {
-		var currentTask task.Task
+		var (
+			currentTask    entities.Task
+			creationTimeTS pgtype.Timestamp
+			updatingTimeTS pgtype.Timestamp
+		)
 
-		err = rows.Scan(&currentTask.Id, &currentTask.CreationTime, &currentTask.Message)
+		err = rows.Scan(&currentTask.Id, &creationTimeTS, &updatingTimeTS, &currentTask.Message)
 		if err != nil {
 			return nil, err
 		}
+		currentTask.CreationTime = creationTimeTS.Time
+		currentTask.UpdatingTime = updatingTimeTS.Time
 
 		tasks = append(tasks, currentTask)
 	}
@@ -63,29 +71,39 @@ func (t *TaskPostgres) GetAll(ctx context.Context) ([]task.Task, error) {
 	return tasks, nil
 }
 
-func (t *TaskPostgres) GetById(ctx context.Context, id int) (task.Task, error) {
-	var selectedTask task.Task
+func (t *TaskPostgres) GetById(ctx context.Context, id int) (entities.Task, error) {
+	var (
+		selectedTask   entities.Task
+		creationTimeTS pgtype.Timestamp
+		updatingTimeTS pgtype.Timestamp
+	)
 
-	query := `SELECT id, creation_time, message FROM task WHERE id = $1`
+	query := fmt.Sprintf(`SELECT id, creation_time, updating_time, message FROM %s WHERE id = $1`, tasksTable)
 
 	row := t.db.QueryRow(ctx, query, id)
-	if err := row.Scan(&selectedTask.Id, &selectedTask.CreationTime, &selectedTask.Message); err != nil {
-		return selectedTask, nil
+	if err := row.Scan(&selectedTask.Id, &creationTimeTS, &updatingTimeTS, &selectedTask.Message); err != nil {
+		return selectedTask, err
 	}
+	if id == 0 {
+		return selectedTask, fmt.Errorf("no task with such an id")
+	}
+
+	selectedTask.CreationTime = creationTimeTS.Time
+	selectedTask.UpdatingTime = updatingTimeTS.Time
 
 	return selectedTask, nil
 }
 
-func (t *TaskPostgres) Update(ctx context.Context, id int, task task.Task) (task.Task, error) {
+func (t *TaskPostgres) Update(ctx context.Context, id int, task entities.Task) (entities.Task, error) {
 	actualTask, err := t.GetById(ctx, id)
 	if err != nil {
 		return actualTask, err
 	}
 
-	query := `UPDATE task SET updating_time = $1, message = $2 WHERE id = $3`
+	query := fmt.Sprintf(`UPDATE %s SET updating_time = $1, message = $2 WHERE id = $3`, tasksTable)
 
 	_, err = t.db.Exec(ctx, query,
-		time.Now().Format("01/02/2000 12:00:00"),
+		time.Now(),
 		task.Message,
 		id,
 	)
@@ -97,7 +115,12 @@ func (t *TaskPostgres) Update(ctx context.Context, id int, task task.Task) (task
 }
 
 func (t *TaskPostgres) Delete(ctx context.Context, id int) error {
-	query := `DELETE FROM task WHERE id = $1`
-	_, err := t.db.Exec(ctx, query, id)
+	_, err := t.GetById(ctx, id)
+	if err != nil {
+		return err
+	}
+
+	query := fmt.Sprintf(`DELETE FROM %s WHERE id = $1`, tasksTable)
+	_, err = t.db.Exec(ctx, query, id)
 	return err
 }

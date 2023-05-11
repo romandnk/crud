@@ -1,6 +1,6 @@
-CREATE TABLE IF NOT EXISTS task (
+CREATE TABLE IF NOT EXISTS tasks (
     id serial PRIMARY KEY,
-    creation_time varchar(255),
-    updating_time varchar(255),
-    message varchar(255)
+    creation_time TIMESTAMP NOT NULL,
+    updating_time TIMESTAMP NOT NULL,
+    message varchar(255) NOT NULL
 );

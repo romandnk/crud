@@ -18,9 +18,9 @@ func NewHandler(services *service.Service) *Handler {
 func (h *Handler) NewRouter() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/create", h.createTask)
-	mux.HandleFunc("/get", h.createTask)
-	mux.HandleFunc("/getById", h.createTask)
-	mux.HandleFunc("/update", h.createTask)
-	mux.HandleFunc("/delete", h.createTask)
+	mux.HandleFunc("/get", h.getAllTasks)
+	mux.HandleFunc("/getById", h.getTaskById)
+	mux.HandleFunc("/update", h.updateTask)
+	mux.HandleFunc("/delete", h.deleteTask)
 	return mux
 }

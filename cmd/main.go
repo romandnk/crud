@@ -51,7 +51,7 @@ func main() {
 		cfg.SSL,
 	)
 
-	db, err := postgres.NewPostgresDB(ctx, connString, "/schema")
+	db, err := postgres.NewPostgresDB(ctx, connString)
 	if err != nil {
 		logrus.Fatalf("error connecting to db: %s", err.Error())
 	}
@@ -62,14 +62,19 @@ func main() {
 
 	srv := infastructure.Server{}
 	go func() {
-		if err := srv.Start(viper.GetString("port"), handlers.NewRouter()); err != nil {
+		if err := srv.Start(viper.GetString("port"), connString, "/schema", handlers.NewRouter()); err != nil {
 			logrus.Fatalf("error occured while running http server: %s", err.Error())
 		}
 	}()
+
 	logrus.Print("server has started")
+
 	done := make(chan os.Signal, 1)
 	signal.Notify(done, syscall.SIGTERM, syscall.SIGINT)
 	<-done
+
+	logrus.Print("server shutting down")
+
 	if err := srv.Stop(ctx); err != nil {
 		logrus.Errorf("error while server shutting down: %s", err.Error())
 	}
